@@ -1,0 +1,15 @@
+<ion-view view-title="Salas">
+
+    <ion-nav-buttons side="right">
+        <button class="button button-icon ion-android-add" ng-click="openPrompt()">
+        </button>
+    </ion-nav-buttons>
+
+    <ion-content>
+        <ion-list>
+            <ion-item ng-repeat="(key, room) in rooms" ui-sref="app.room({id: key})">
+                {{room.name}} ({{room|countMembers}}/10)
+            </ion-item>
+        </ion-list>
+    </ion-content>
+</ion-view>

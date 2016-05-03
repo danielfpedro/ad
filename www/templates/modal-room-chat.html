@@ -1,0 +1,24 @@
+<ion-modal-view>
+    <ion-header-bar>
+        <h1 class="title">Chat</h1>
+        <button class="button button-clear button-positive" ng-click="closeModal()">Fechar</button>
+    </ion-header-bar>
+    <ion-content class="has-footer">
+        <ul class="list">
+            <li class="item" ng-repeat="message in chatMessages">
+                {{message.msg}}
+            </li>
+        </ul>
+    </ion-content>
+    <form ng-submit="addChatMessage(chatMessage)">
+        <div class="bar bar-footer item-input-inset">
+            <label class="item-input-wrapper">
+                <i class="icon ion-send placeholder-icon"></i>
+                <input type="text" placeholder="Mensagem" ng-model="chatdata.message">
+            </label>
+            <button class="button button-clear" type="submit" ng-disabled="!chatdata.message">
+                Enviar
+            </button>   
+        </div>
+    </form>
+</ion-modal-view>

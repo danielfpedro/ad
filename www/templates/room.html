@@ -1,0 +1,25 @@
+<ion-view>
+	<ion-nav-title>
+      {{room.name}}
+    </ion-nav-title>
+
+	<ion-nav-buttons side="right">
+		<button class="button button-icon ion-chatbubbles" ng-click="openModal()">
+		</button>
+    </ion-nav-buttons>
+
+    <ion-content>
+    	<ion-list>
+    		<ion-item class="item-divider">
+    			{{room|countMembers}} membros
+    		</ion-item>
+    		<ion-item class="item-avatar" ng-repeat="member in members">
+    			<img ng-src="http://graph.facebook.com/v2.6/{{member.facebookId}}/picture?type=square">
+    			<h2 style="margin-top: 12px;">{{member.name}}</h2>
+    		</ion-item>
+    	</ion-list>
+
+    </ion-content>
+
+
+</ion-view>
