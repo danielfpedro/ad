@@ -1,23 +1,64 @@
+<style>
+.item-checkbox-img {
+  vertical-align: middle;
+  position: absolute;
+  top: 0px;
+  right: 0;
+  height:100%;
+}
+</style>
 <ion-view>
 	<ion-nav-title>
       {{room.name}}
     </ion-nav-title>
 
 	<ion-nav-buttons side="right">
-		<button class="button button-icon ion-chatbubbles" ng-click="openModal()">
-		</button>
+        <button class="button button-icon ion-clipboard" ng-click="openPrompt()"></button>
+		<button class="button button-icon ion-chatbubbles" ng-click="openModal()"></button>
     </ion-nav-buttons>
 
     <ion-content>
     	<ion-list>
+            <ion-item class="item-divider">
+                Temas
+            </ion-item>
+            <ion-item ng-repeat="(key, tema) in room.temas" on-hold="confirmDeleteTema(key, tema.name)">
+                {{tema.name}}
+            </ion-item>
+            <ion-item class="item-text-wrap text-center" ng-if="!room.temas">
+                Nenhuma tema adicionado ainda.
+            </ion-item>
     		<ion-item class="item-divider">
     			{{room|countMembers}} membros
     		</ion-item>
-    		<ion-item class="item-avatar" ng-repeat="member in members">
-    			<img ng-src="http://graph.facebook.com/v2.6/{{member.facebookId}}/picture?type=square">
-    			<h2 style="margin-top: 12px;">{{member.name}}</h2>
-    		</ion-item>
+            <ion-checkbox
+                ng-disabled="me.uid != member.$id"
+                ng-model="room.members[member.$id].ready"
+                ng-repeat="member in members"
+                ng-click="">
+
+                {{member.name}} <span ng-if="isAdmin(member.$id)">(admin)</span>
+
+                <img
+                    class="item-checkbox-img"
+                    src="http://graph.facebook.com/v2.6/{{member.facebookId}}/picture?type=square">
+            </ion-checkbox>             
     	</ion-list>
+
+        <div class="text-center padding">
+            <span ng-if="!room.temas || room.temas.length < 1">
+                O jogo só poderá começar quando houver ao menos um tema adicionado.
+            </span>
+            <span ng-if="room.temas && !allIsReady()">
+                O jogo só cameçará quando todos os integrantes da sala <strong>estiverem prontos</strong>.
+            </span>
+            <div ng-if="room.temas && allIsReady() && members.length <= 1">
+                O jogo só pode começar quando ouver no mínimo dois jogadores.
+            </div>
+            <div ng-if="room.temas && allIsReady() && members.length > 2">
+                O jogo começa em 3, 2, 1...
+            </div>
+        </div>
 
     </ion-content>
 

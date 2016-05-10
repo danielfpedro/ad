@@ -67,6 +67,10 @@ angular.module('starter', [
             }
         }
     })
+    .state('logout', {
+        url: '/logout',
+        controller: 'LogoutController',
+    })
 
     .state('app.browse', {
             url: '/browse',

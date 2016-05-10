@@ -32,7 +32,27 @@ angular.module('starter.controllers', [])
         doLoginEmailPassword: function(){
 
         },
-        doFacebookLogin: function(){
+        doBrowserFacebookLogin: function(){
+            var defer = $q.defer();
+            var _this = this;
+
+            FirebaseRef.authWithOAuthPopup("facebook", function(error, data) {
+                if (error) {
+                    defer.reject();
+                    console.log("Login Failed!", error);
+                } else {
+                    console.log(data);
+                    var userData = _this.getUserData(data);
+                    console.log('Final user data:', userData);
+                    console.log('Salvando/update usuario');
+                    _this.saveUser(userData);
+                    defer.resolve()
+                }
+            });
+
+            return defer.promise;
+        },
+        doNativeFacebookLogin: function(){
             var _this = this;
             return this.getAccessToken()
                 .then(function(token){
@@ -121,6 +141,14 @@ angular.module('starter.controllers', [])
         }
     };
 })
+.controller('LogoutController', function(
+    FirebaseAuth,
+    $state
+){
+    FirebaseAuth.$unauth();
+    $state.go('login');
+})
+
 .controller('LoginController', function(
     $scope,
     Auth,
@@ -141,9 +169,6 @@ angular.module('starter.controllers', [])
           console.error("Authentication failed:", error);
         });
     };
-    $scope.logout = function(){
-        FirebaseAuth.$unauth();
-    };
     $scope.createUser = function() {
       $scope.message = null;
       $scope.error = null;
@@ -157,21 +182,32 @@ angular.module('starter.controllers', [])
         $scope.error = error;
       });
     };
-    $scope.doFacebookLogin = function() {
-        $ionicBackdrop.retain();
-        Auth
-            .doFacebookLogin()
-            .then(function(){
-                $state.go('app.rooms');
-            })
-            .catch(function(){
-                $ionicPlatform.ready(function() {
-                    $cordovaToast.show('Ocorreu um erro ao tentar logar com o Facebook', 'long', 'bottom');
+    $scope.doFacebookLogin = function(type) {
+        if (type == 'native') {
+            $ionicBackdrop.retain();
+            Auth
+                .doNativeFacebookLogin()
+                .then(function(){
+                    $state.go('app.rooms');
+                })
+                .catch(function(){
+                    $ionicPlatform.ready(function() {
+                        $cordovaToast.show('Ocorreu um erro ao tentar logar com o Facebook', 'long', 'bottom');
+                    });
+                })
+                .finally(function(){
+                    $ionicBackdrop.release();
                 });
-            })
-            .finally(function(){
-                $ionicBackdrop.release();
-            });
+        } else {
+            $ionicBackdrop.retain();
+            Auth.doBrowserFacebookLogin()
+                .then(function(){
+                    $state.go('app.rooms');
+                })
+                .finally(function(){
+                   $ionicBackdrop.release(); 
+                });
+        }
     };
 })
 .controller('RoomsController', function(
@@ -224,25 +260,111 @@ angular.module('starter.controllers', [])
     $stateParams,
     FirebaseAuth,
     authData,
+    $timeout,
     $firebaseArray,
-    $ionicModal
+    $ionicModal,
+    $ionicPopup,
+    $cordovaDialogs
 ) {
+    // Passando o meu uid para o scope para fazer algumas logicas na view
+    $scope.me = authData;
 
+    $scope.newTemaData = {};
+    $scope.openPrompt = function() {
+          var myPopup = $ionicPopup.show({
+            template: '<input type="text" ng-model="newTemaData.name" placeholder="Tema">',
+            title: 'Entre com o tema',
+            scope: $scope,
+            buttons: [
+              { text: 'Cancel' },
+              {
+                text: '<b>Criar</b>',
+                type: 'button-positive',
+                onTap: function(e) {
+                  if (!$scope.newTemaData.name) {
+                    //don't allow the user to close unless he enters wifi password
+                    e.preventDefault();
+                  } else {
+                    $scope.addTema($scope.newTemaData);
+                    $scope.newTemaData.name = '';
+                    return $scope.addTema.name;
+                  }
+                }
+              }
+            ]
+          });
+    };
+
+    $scope.toggleReady = function(member){
+        console.log(member);
+        // $cordovaToast.show('Ocorreu um erro ao tentar logar com o Facebook', 'long', 'bottom');
+    }
+
+    $scope.isAdmin = function(uid){
+        if (typeof $scope.room.admin[uid] != 'undefined') {
+            return true;
+        }
+        return false;
+    }
+
+    $scope.confirmDeleteTema = function(uid, name){
+        $cordovaDialogs.confirm('Você realmente deseja deletar o tema \"'+name+'\"', 'title', ['Sim','Não'])
+            .then(function(buttonIndex) {
+                // no button = 0, 'OK' = 1, 'Cancel' = 2
+                var btnIndex = buttonIndex;
+                if (btnIndex === 1) {
+                    console.log('Deletando tema de uid', uid);
+                    delete $scope.room.temas[uid]
+                }
+            });
+    }
+
+    $scope.deleteTema = function(tema) {
+        // delete ;
+    }
+
+    $scope.allIsReady = function() {
+        var notReady = 0;
+        angular.forEach($scope.room.members, function(value, key){
+            // console.log('Passada no members all is ready', value);
+            if (!value.ready) {
+                notReady++;
+            }
+        });
+        return (notReady === 0);
+    }
+
+    $scope.addTema = function(data) {
+        var ref = FirebaseRef
+            .child('rooms')
+            .child(roomUid)
+            .child('temas');
+
+        ref.push(data);
+    }
     function addPresence() {
-        console.log('Add presence');
-        var newMember = FirebaseRef.child('rooms').child(roomUid).child('members');
-        var data = {};
-        data[authData.uid] = true;
-        newMember.update(data);
+        // console.log('Add presence');
+        var newMember = FirebaseRef.child('rooms').child(roomUid).child('members').child(authData.uid);
+        newMember.set({ready: false});
+        console.log('Aqui', $scope.room);
     }
     function removePresence() {
         var removeMembership = FirebaseRef.child('rooms').child(roomUid).child('members').child(authData.uid);
         removeMembership.remove();        
     }
+    $scope.room = {};
     $scope.$on("$ionicView.afterEnter", function(event, data){
-        addPresence();
-        var presence = FirebaseRef.child('rooms').child(roomUid).child('members').child(authData.uid);
-        presence.onDisconnect().remove();
+        var syncObject = $firebaseObject(FirebaseRef.child('rooms').child(roomUid));
+        syncObject.$bindTo($scope, "room");
+        $scope.room.$loaded().then(function(){
+            $timeout(function(){
+                addPresence();   
+                console.log('Room', $scope.room);
+            });
+        });
+        
+        // var presence = FirebaseRef.child('rooms').child(roomUid).child('members').child(authData.uid);
+        // presence.onDisconnect().remove();
 
     });
     $scope.$on("$ionicView.afterLeave", function(event, data){
@@ -253,18 +375,35 @@ angular.module('starter.controllers', [])
     var roomUid = $stateParams.id;
 
     $scope.room = $firebaseObject(FirebaseRef.child('rooms').child(roomUid));
+    // if (typeof $scope.room.members == 'undefined') {
+    //     $scope.room.members = null;
+    // }
+    console.log($scope.room);
+
+    // $scope.members = [];
+    // $scope.room.members.$watch(function(){
+    //     $scope.members = [];
+    //     angular.forEach($scope.room, function(value, key){
+    //         $scope.members.push($firebaseObject(FirebaseRef.child('users').child(value.$id)));
+    //     });
+
+    //     console.log('Mudou');
+    // });
 
     $scope.members = [];
-    $scope.room.$watch(function(){
+    FirebaseRef.child('rooms').child(roomUid).child('members').on('value', function(snap) {
         $scope.members = [];
-        angular.forEach($scope.room.members, function(value, key){
+        var snapValue = snap.val();
+        angular.forEach(snapValue, function(value, key){
+            console.log('Valor do snap uma passada', key);
             $scope.members.push($firebaseObject(FirebaseRef.child('users').child(key)));
         });
+        console.log('Members', snapValue);
+    });
 
-        console.log('Mudou');
-    });
-    $scope.room.$loaded().then(function(){
-    });
+    $scope.getUserData = function(uid) {
+        return $firebaseObject(FirebaseRef.child('users').child(uid));
+    }
 
     $scope.chatMessages = [];
     var chatMessages = FirebaseRef.child('roomsChat').child(roomUid).limitToLast(50);
